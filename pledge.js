@@ -1,4 +1,4 @@
-pledge = (function(){
+(function(){
 	var throwError(e){
 			throw new Error(e);
 		},
