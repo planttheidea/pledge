@@ -121,13 +121,11 @@
                     });
                 }
                 
-                this.push(function(data){
+                return this.proceed(function(data){
                     for(var i = onResolutions.length; i--;){
                         newPledge(onResolutions[i],this,data);
                     }
                 },onRejection);
-                                                   
-                return this;
             } else {
                 this.clear();
                 throwError(errors.badParam);
