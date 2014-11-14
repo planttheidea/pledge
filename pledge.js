@@ -11,7 +11,7 @@
 		}
 		errors = {
 			badParam:'Parameter passed is not a valid type for this method.',
-            testFailed:'Test function did not pass.'
+            testFailed:'Test did not pass.'
 		},
 		Pledge = function(){
 			this.init = function(){
@@ -121,11 +121,13 @@
                     });
                 }
                 
-                return this.proceed(function(data){
+                this.push(function(data){
                     for(var i = onResolutions.length; i--;){
                         newPledge(onResolutions[i],this,data);
                     }
                 },onRejection);
+                                                   
+                return this;
             } else {
                 this.clear();
                 throwError(errors.badParam);
@@ -146,19 +148,28 @@
                 return self;
             }
         },
-        wait:function(delay,testFn){
-            var self = this;
+        wait:function(delay,test){
+            var self = this,
+                testResult;
+            
+            switch(getType(test)){
+                case 'boolean':
+                    testResult = test;
+                    break;
+                case 'function':
+                    testResult = test();
+                    break;
+                default:
+                    testResult = true;
+                    break;
+            }
             
             return self.proceed(function(data){
                 window.setTimeout(function(){
-                    if(getType(testFn) === 'function'){
-                        if(testFn()){
-                            self.resolve.call(self,data);
-                        } else {
-                            self.reject.call(self,errors.testFailed);
-                        }
-                    } else {
+                    if(testResult){
                         self.resolve.call(self,data);
+                    } else {
+                        self.reject.call(self,errors.testFailed);
                     }
                 },delay);
             });
