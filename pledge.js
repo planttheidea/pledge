@@ -1,34 +1,39 @@
-(function(window){
-    var throwError = function(e){
-            throw new Error(e);
-        },
-        getType = function(obj){
+(function(){
+	var throwError = function(e){
+			throw new Error(e);
+		},
+		getType = function(obj){
 			return Object.prototype.toString.call(obj).replace(/^\[object (.+)\]$/, "$1").toLowerCase();
 		},
+		states = {
+			resolved:'resolved',
+			rejected:'rejected'
+		}
 		errors = {
 			badParam:'Parameter passed is not a valid type for this method.',
+            testFailed:'Test function did not pass.'
 		},
-        Pledge = function(){
-            this.clear = function(){
-                this.resolved = {};
-                this.rejected = {};
-                
-                this.puid = -1;
-                this.cuid = -1;
-            };
-            
+		Pledge = function(){
+			this.init = function(){
+				this.resolved = {};
+				this.rejected = {};
+				
+				this.puid = -1;
+				this.cuid = -1;
+			};
+			
 			this.resolve = function(data){
 				this.cuid++;
 
-				if (this.resolved[this.cuid]){
+				if(this.resolved[this.cuid]){
 					this.resolved[this.cuid].call(this,data);
 				}
 			};
 
-			this.reject = function(e){
+			this.reject = function(e){	
 				this.cuid++;
 
-				if (this.rejected[this.cuid]){
+				if(this.rejected[this.cuid]){
 					this.rejected[this.cuid].call(this,e);
 				}
 			};
@@ -39,21 +44,21 @@
 				if(getType(onResolution) === 'function'){
 					this.resolved[this.puid] = onResolution;
 				} else {
-                    this.resolved[this.puid] = undefined;
+					this.resolved[this.puid] = undefined;
 				}
 
 				if(getType(onRejection) === 'function'){
 					this.rejected[this.puid] = onRejection;
 				} else {
-                    this.rejected[this.puid] = function(e){
-                        throwError(e);
-                    };
+					this.rejected[this.puid] = function(e){
+                        throwError('Rejected: ' + (e || ''));
+					};
 				}
 			};
-            
-            this.clear();
-            
-            return this;
+			
+			this.init();
+			
+			return this;
 		},
 		Postpone = function(){
 			var self = this;
@@ -71,20 +76,18 @@
 			this.pledge = function(){
 				return (new Pledge()).start(function(){
 					var p = this;
-					
-					window.setTimeout(function(){
-						if(self.resolvePostpone) {
-							p.resolve(self.resolveData);
-						} else if(rejectMe) {
-							p.reject(self.rejectData);
-						}
-					},0);
+                    
+                    if(self.resolvePostpone) {
+                        p.resolve(self.resolveData);
+                    } else if(self.rejectPostpone) {
+                        p.reject(self.rejectData);
+                    }
 				});
 			};
 		};
 		
-    Pledge.prototype = {
-        complete:function(onResolution,onRejection){
+	Pledge.prototype = {
+		complete:function(onResolution,onRejection){
             this.push(onResolution, onRejection);
         },
         consecutive:function(onResolutions,onRejections){
@@ -144,9 +147,26 @@
                 
                 return self;
             }
+        },
+        wait:function(delay,testFn){
+            var self = this;
+            
+            return self.proceed(function(data){
+                window.setTimeout(function(){
+                    if(getType(testFn) === 'function'){
+                        if(testFn()){
+                            self.resolve.call(self,data);
+                        } else {
+                            self.reject.call(self,errors.testFailed);
+                        }
+                    } else {
+                        self.resolve.call(self,data);
+                    }
+                },delay);
+            });
         }
-    };
-    
-    window.Pledge = Pledge;
-    window.Postpone = Postpone;
-})(window);
+	};
+	
+	window.Pledge = Pledge;
+	window.Postpone = Postpone;
+})();
