@@ -1,6 +1,9 @@
-(function(window){
+pledge = (function(){
 	var throwError(e){
 			throw new Error(e);
+		},
+		getType = function(obj){
+			return Object.prototype.toString.call(obj).replace(/^\[object (.+)\]$/, "$1").toLowerCase();
 		},
 		errors = {
 			badParam:'Parameter passed is not a valid type for this method.',
@@ -34,13 +37,13 @@
 			this.push = function(onResolution, onRejection){
 				this.puid++;
 
-				if($.type(onResolution) === 'function'){
+				if(getType(onResolution) === 'function'){
 					this.resolved[this.puid] = onResolution;
 				} else {
 					this.resolved[this.puid] = undefined;
 				}
 
-				if($.type(onRejection) === 'function'){
+				if(getType(onRejection) === 'function'){
 					this.rejected[this.puid] = onRejection;
 				} else {
 					this.rejected[this.puid] = function(e){
@@ -86,7 +89,7 @@
 			this.push(onResolution, onRejection);
 		},
 		consecutive:function(onResolutions,onRejections){
-			var isArray = ($.type(onRejections) === 'array'),
+			var isArray = (getType(onRejections) === 'array'),
 				len = onResolutions.length;
 			
 			if(!isArray || (isArray && (len === onRejections.length))){
@@ -105,7 +108,7 @@
 			}
 		},
 		concurrent:function(onResolutions,onRejection){
-			if(($.type(onRejection) === 'undefined') || ($.type(onRejection) === 'function')){
+			if((getType(onRejection) === 'undefined') || (getType(onRejection) === 'function')){
 				var len = onResolutions.length,
 					finished = [];
 				
@@ -136,7 +139,7 @@
 			return this;
 		},
 		start:function(fn){
-			if($.type(fn) === 'function'){
+			if(getType(fn) === 'function'){
 				fn.call(this);
 			}
 			
@@ -146,4 +149,4 @@
 	
 	window.Pledge = Pledge;
 	window.Postpone = Postpone;
-})(window);
+})();
