@@ -1,5 +1,5 @@
 (function(){
-	var throwError(e){
+	var throwError = function(e){
 			throw new Error(e);
 		},
 		getType = function(obj){
