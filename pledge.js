@@ -1,35 +1,34 @@
-(function(){
-	var throwError = function(e){
-			throw new Error(e);
-		},
-		getType = function(obj){
+(function(window){
+    var throwError = function(e){
+            throw new Error(e);
+        },
+        getType = function(obj){
 			return Object.prototype.toString.call(obj).replace(/^\[object (.+)\]$/, "$1").toLowerCase();
 		},
 		errors = {
 			badParam:'Parameter passed is not a valid type for this method.',
-			resolveEqualReject:'The length of resolve functions does not equal the length of reject functions.'
 		},
-		Pledge = function(){
-			this.init = function(){
-				this.resolved = {};
-				this.rejected = {};
-				
-				this.puid = -1;
-				this.cuid = -1;
-			};
-			
+        Pledge = function(){
+            this.clear = function(){
+                this.resolved = {};
+                this.rejected = {};
+                
+                this.puid = -1;
+                this.cuid = -1;
+            };
+            
 			this.resolve = function(data){
 				this.cuid++;
 
-				if(this.resolved[this.cuid]){
+				if (this.resolved[this.cuid]){
 					this.resolved[this.cuid].call(this,data);
 				}
 			};
 
-			this.reject = function(e){					
+			this.reject = function(e){
 				this.cuid++;
 
-				if(this.rejected[this.cuid]){
+				if (this.rejected[this.cuid]){
 					this.rejected[this.cuid].call(this,e);
 				}
 			};
@@ -40,21 +39,21 @@
 				if(getType(onResolution) === 'function'){
 					this.resolved[this.puid] = onResolution;
 				} else {
-					this.resolved[this.puid] = undefined;
+                    this.resolved[this.puid] = undefined;
 				}
 
 				if(getType(onRejection) === 'function'){
 					this.rejected[this.puid] = onRejection;
 				} else {
-					this.rejected[this.puid] = function(e){
-						throwError('Rejected: '+ e);
-					};
+                    this.rejected[this.puid] = function(e){
+                        throwError(e);
+                    };
 				}
 			};
-			
-			this.init();
-			
-			return this;
+            
+            this.clear();
+            
+            return this;
 		},
 		Postpone = function(){
 			var self = this;
@@ -84,69 +83,70 @@
 			};
 		};
 		
-	Pledge.prototype = {
-		complete:function(onResolution,onRejection){
-			this.push(onResolution, onRejection);
-		},
-		consecutive:function(onResolutions,onRejections){
-			var isArray = (getType(onRejections) === 'array'),
+    Pledge.prototype = {
+        complete:function(onResolution,onRejection){
+            this.push(onResolution, onRejection);
+        },
+        consecutive:function(onResolutions,onRejections){
+            var isArray = (getType(onRejections) === 'array'),
 				len = onResolutions.length;
-			
-			if(!isArray || (isArray && (len === onRejections.length))){
-				for(var i = 0, len = onResolutions.length; i < len; i++){
-					if(isArray){
-						this.push(onResolutions[i], onRejections[i]);
-					} else {
-						this.push(onResolutions[i], onRejection);
-					}
-				}
+            
+            for(var i = 0, len = onResolutions.length; i < len; i++){
+                if(isArray){
+                    this.push(onResolutions[i], onRejections[i]);
+                } else {
+                    this.push(onResolutions[i], onRejections);
+                }
+            }
 				
-				return this;
-			} else if(isArray) {
-				this.init();                
-				throwError(errors.resolveEqualReject);
-			}
-		},
-		concurrent:function(onResolutions,onRejection){
-			if((getType(onRejection) === 'undefined') || (getType(onRejection) === 'function')){
-				var len = onResolutions.length,
-					finished = [];
-				
-				this.push(function(data){
-					var self = this;
-					
-					for(var i = onResolutions.length; i--;){                    
-						(new Pledge()).start(function(){
-							onResolutions[i].call(this,data);
-						}).complete(function(newData){
-							finished.push(newData);
-							
-							if(finished.length === len){
-								self.resolve(finished);
-							}
-						});
-					}
-				},onRejection);
-												   
-				return this;
-			} else {
-				this.init();
-				throwError(errors.badParam);
-			}
-		},
-		proceed:function(onResolution,onRejection){
-			this.push(onResolution,onRejection);     
 			return this;
-		},
-		start:function(fn){
-			if(getType(fn) === 'function'){
-				fn.call(this);
-			}
-			
-			return this;
-		}
-	};
-	
-	window.Pledge = Pledge;
-	window.Postpone = Postpone;
-})();
+        },
+        concurrent:function(onResolutions,onRejection){
+            if((getType(onRejection) === 'undefined') || (getType(onRejection) === 'function')){
+                var len = onResolutions.length,
+                    finished = [];
+                
+                function newPledge(fn,self,data){                        
+                    (new Pledge()).start(function(){
+                        fn.call(this,data);
+                    }).complete(function(newData){
+                        finished.push(newData);
+                        
+                        if(finished.length === len){
+                            self.resolve(finished);
+                        }
+                    });
+                }
+                
+                this.push(function(data){
+                    for(var i = onResolutions.length; i--;){
+                        newPledge(onResolutions[i],this,data);
+                    }
+                },onRejection);
+                                                   
+                return this;
+            } else {
+                this.clear();
+                throwError(errors.badParam);
+            }
+        },
+        proceed:function(onResolution,onRejection){
+            this.push(onResolution, onRejection);     
+            return this;
+        },
+        start:function(fn){
+            if(getType(fn) === 'function'){
+                var self = this;
+                
+                window.setTimeout(function(){
+                    fn.call(self);
+                },0);
+                
+                return self;
+            }
+        }
+    };
+    
+    window.Pledge = Pledge;
+    window.Postpone = Postpone;
+})(window);
